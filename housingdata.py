@@ -13,57 +13,57 @@ soup = BeautifulSoup(contents, "html.parser")
 
 summary = soup.find("div", {'id': 'js-bukkenList'})
 
-# ページ数を取得
+# get page number
 body = soup.find("body")
 pages = body.find_all("div", {'class': 'pagination pagination_set-nav'})
 pages_text = str(pages)
 pages_split = pages_text.split('</a></li>')
 num_pages = int(pages_split[0].split('>')[-1])
 
-# URLを入れるリスト
+# store all urls
 urls = []
 
-# 1ページ目を格納
+# store first parge
 urls.append(url)
 
-# 2ページ目から最後のページまでを格納
+# store rest of the pages (from two to the end)
 for i in range(num_pages-1):
     pg = str(i+2)
     url_page = url + '&pn=' + pg
     urls.append(url_page)
 
-name = []  # マンション名
-address = []  # 住所
-locations0 = []  # 立地1つ目（最寄駅/徒歩~分）
-locations1 = []  # 立地2つ目（最寄駅/徒歩~分）
-locations2 = []  # 立地3つ目（最寄駅/徒歩~分）
-age = []  # 築年数
-height = []  # 建物高さ
-floor = []  # 階
-rent = []  # 賃料
-admin = []  # 管理費
-others = []  # 敷/礼/保証/敷引,償却
-floor_plan = []  # 間取り
-area = []  # 専有面積
+name = []  # name of apartment
+address = []
+locations0 = []  # closest station and how long it takes to get there
+locations1 = []  # closest station and how long it takes to get there
+locations2 = []  # closest station and how long it takes to get there
+age = []  # how many years ago the building was built
+height = []  # how many floors it has
+floor = []  # the floor of the rent
+rent = []  # how much per month
+admin = []  # administration fee
+others = []  # other costs
+floor_plan = []
+area = []  # size of the room
 details = []  # URL
 
-# 各ページで以下の動作をループ
+# Loop all the pages
 for url in urls:
-    # 物件リストを切り出し
+    # get all lists of apartmemt
     result = requests.get(url)
     c = result.content
     soup = BeautifulSoup(c, "html.parser")
     summary = soup.find("div", {'id': 'js-bukkenList'})
 
-    # マンション名、住所、立地（最寄駅/徒歩~分）、築年数、建物高さが入っているcassetteitemを全て抜き出し
+    # get DOM of all general info
     cassetteitems = summary.find_all("div", {'class': 'cassetteitem'})
 
-    # 各cassetteitemsに対し、以下の動作をループ
+    # loop the DOM
     for i in range(len(cassetteitems)):
-        # 各建物から売りに出ている部屋数を取得
+        # get how many rooms are available in the apartment
         tbodies = cassetteitems[i].find_all('tbody')
 
-        # マンション名取得
+        # get name of the apartment
         subtitle = cassetteitems[i].find_all("div", {
             'class': 'cassetteitem_content-title'})
         subtitle = str(subtitle)
@@ -72,7 +72,7 @@ for url in urls:
         subtitle_rep2 = subtitle_rep.replace(
             '</div>]', '')
 
-        # 住所取得
+        # get address
         subaddress = cassetteitems[i].find_all("li", {
             'class': 'cassetteitem_detail-col1'})
         subaddress = str(subaddress)
@@ -81,16 +81,16 @@ for url in urls:
         subaddress_rep2 = subaddress_rep.replace(
             '</li>]', '')
 
-        # 部屋数だけ、マンション名と住所を繰り返しリストに格納（部屋情報と数を合致させるため）
+        # loop the above data by number of rooms available
         for y in range(len(tbodies)):
             name.append(subtitle_rep2)
             address.append(subaddress_rep2)
 
-        # 立地を取得
+        # get closest station info
         sublocations = cassetteitems[i].find_all("li", {
             'class': 'cassetteitem_detail-col2'})
 
-        # 立地は、1つ目から3つ目までを取得（4つ目以降は無視）
+        # get three of them
         for x in sublocations:
             cols = x.find_all('div')
             for j in range(len(cols)):
@@ -103,7 +103,7 @@ for url in urls:
                     elif j == 2:
                         locations2.append(text)
 
-        # 築年数と建物高さを取得
+        # get year and highest floor of the apartment
         tbodies = cassetteitems[i].find_all('tbody')
         col3 = cassetteitems[i].find_all("li", {
             'class': 'cassetteitem_detail-col3'})
@@ -112,15 +112,15 @@ for url in urls:
                 age.append(x.find_all('div')[0].string)
                 height.append(x.find_all('div')[1].string)
 
-    # 階、賃料、管理費、敷/礼/保証/敷引,償却、間取り、専有面積が入っているtable
+    # get detail info
     tables = summary.find_all('table')
 
-    # 各建物（table）に対して、売りに出ている部屋（row）を取得
+    # get each info in detail
     rows = []
     for i in range(len(tables)):
         rows.append(tables[i].find_all('tr'))
 
-    # 各部屋に対して、tableに入っているtext情報を取得し、dataリストに格納
+    # get all detail info and store them to each variables
     data = []
     for row in rows:
         for tr in row:
@@ -160,7 +160,7 @@ for url in urls:
 
     time.sleep(10)
 
-# 各リストをシリーズ化
+# make list
 name = Series(name)
 address = Series(address)
 locations0 = Series(locations0)
@@ -176,13 +176,13 @@ floor_plan = Series(floor_plan)
 area = Series(area)
 area = Series(details)
 
-# 各シリーズをデータフレーム化
+# make the list into dataframe
 suumo_df = pd.concat([name, address, locations0, locations1, locations2,
                       age, height, floor, rent, admin, others, floor_plan, area, details], axis=1)
 
-# カラム名
+# male columns
 suumo_df.columns = ['Name', 'Address', 'Station1', 'Station2', 'Station3', 'age',
                     'Total Floor', 'Floor', 'Rent', 'Admin', 'Other Cost', 'Plan', 'm2', "url"]
 
-# csvファイルとして保存
+# save as csv
 suumo_df.to_csv('sumo.csv', sep='\t', encoding='utf-16')
